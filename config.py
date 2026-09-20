@@ -16,9 +16,9 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
 # ---------------------------------------------------------------------------
-# TAKİP EDİLECEK BORSA SEMBOLLERİ (Binance formatında)
+# TAKİP EDİLECEK BORSA SEMBOLLERİ (Bybit formatında, büyük harf)
 # ---------------------------------------------------------------------------
-SYMBOLS = ["btcusdt", "ethusdt", "solusdt", "bnbusdt", "xrpusdt"]
+SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"]
 
 # ---------------------------------------------------------------------------
 # WHALE ALERT (on-chain büyük transfer) AYARLARI
