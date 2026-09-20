@@ -1,6 +1,10 @@
 """
 Whale Tracking Bot - Borsa hacim / alış-satış akışı izleyici
-Binance'in genel (API key gerektirmeyen) WebSocket akışını kullanır: @aggTrade
+Bybit'in genel (API key gerektirmeyen) WebSocket akışını kullanır: publicTrade
+
+Not: Binance.com, ABD sunucularından (Railway dahil) gelen bağlantıları
+bölgesel kısıtlama nedeniyle reddediyor (HTTP 451). Bybit bu kısıtlamayı
+uygulamadığı için buluta deploy edilen botlar için daha uygun.
 
 Her işlem geldiğinde veritabanına yazar; periyodik olarak:
   1) Hacim ani artışlarını (volume spike)
@@ -30,35 +34,49 @@ from database import (
 )
 from notifier import send_telegram_message
 
-BINANCE_WS_BASE = "wss://stream.binance.com:9443/stream"
-
-
-def build_stream_url(symbols):
-    streams = "/".join(f"{s}@aggTrade" for s in symbols)
-    return f"{BINANCE_WS_BASE}?streams={streams}"
+BYBIT_WS_URL = "wss://stream.bybit.com/v5/public/spot"
 
 
 async def listen_trades():
-    """Binance aggTrade akışına bağlanır ve her trade'i veritabanına yazar."""
-    url = build_stream_url(SYMBOLS)
+    """Bybit publicTrade akışına bağlanır ve her trade'i veritabanına yazar."""
     backoff = 1
     while True:
         try:
-            async with websockets.connect(url, ping_interval=20) as ws:
-                print(f"[OK] Binance WebSocket bağlantısı kuruldu ({len(SYMBOLS)} sembol)")
+            async with websockets.connect(BYBIT_WS_URL, ping_interval=None) as ws:
+                # Bybit'e abone olma isteği gönder
+                topics = [f"publicTrade.{s.upper()}" for s in SYMBOLS]
+                await ws.send(json.dumps({"op": "subscribe", "args": topics}))
+                print(f"[OK] Bybit WebSocket bağlantısı kuruldu ({len(SYMBOLS)} sembol)")
                 backoff = 1
+
+                last_ping = time.time()
+
                 async for raw_msg in ws:
+                    # Bybit her 20 saniyede bir ping ister, yoksa bağlantıyı kapatır
+                    if time.time() - last_ping > 18:
+                        await ws.send(json.dumps({"op": "ping"}))
+                        last_ping = time.time()
+
                     msg = json.loads(raw_msg)
-                    data = msg.get("data", {})
-                    if not data:
+
+                    if msg.get("op") in ("subscribe", "ping", "pong"):
                         continue
-                    symbol = data["s"].upper()
-                    price = float(data["p"])
-                    qty = float(data["q"])
-                    quote_qty = price * qty
-                    is_buyer_maker = data["m"]  # True -> satıcı taker (satış baskısı)
-                    ts = int(data["T"] / 1000)
-                    insert_trade(symbol, price, qty, quote_qty, is_buyer_maker, ts)
+
+                    topic = msg.get("topic", "")
+                    if not topic.startswith("publicTrade."):
+                        continue
+
+                    for trade in msg.get("data", []):
+                        symbol = trade["s"].upper()
+                        price = float(trade["p"])
+                        qty = float(trade["v"])
+                        quote_qty = price * qty
+                        # Bybit'te "S" alanı: "Buy" -> taker alıcı (alış baskısı)
+                        #                     "Sell" -> taker satıcı (satış baskısı)
+                        is_buyer_maker = trade["S"] == "Sell"
+                        ts = int(int(trade["T"]) / 1000)
+                        insert_trade(symbol, price, qty, quote_qty, is_buyer_maker, ts)
+
         except (websockets.ConnectionClosed, OSError) as e:
             print(f"[HATA] WebSocket koptu ({e}), {backoff}s sonra yeniden bağlanılıyor...")
             await asyncio.sleep(backoff)
@@ -109,3 +127,4 @@ async def analyze_flow_loop():
 
 async def run_exchange_monitor():
     await asyncio.gather(listen_trades(), analyze_flow_loop())
+
