@@ -95,6 +95,6 @@ MACD_FAST = 12
 MACD_SLOW = 26
 MACD_SIGNAL = 9
 SIGNAL_ALERT_COOLDOWN_SECONDS = 3600  # aynı coin için en fazla saatte bir sinyal
-
+EXCHANGE_OWNER_TYPE = "exchange"
 # ---------------------------------------------------------------------------
 # VERİTABANI
