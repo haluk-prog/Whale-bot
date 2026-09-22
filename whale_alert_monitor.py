@@ -10,12 +10,14 @@ import time
 
 import requests
 
-from config import (
-    WHALE_ALERT_API_KEY,
-    WHALE_MIN_USD_VALUE,
-    WHALE_POLL_INTERVAL_SECONDS,
-    EXCHANGE_OWNER_TYPE,
-)
+import config
+
+# Config değişkenlerini çökme riskine karşı güvenli yükleme
+WHALE_ALERT_API_KEY = getattr(config, 'WHALE_ALERT_API_KEY', '')
+WHALE_MIN_USD_VALUE = getattr(config, 'WHALE_MIN_USD_VALUE', 1000000)
+WHALE_POLL_INTERVAL_SECONDS = getattr(config, 'WHALE_POLL_INTERVAL_SECONDS', 30)
+EXCHANGE_OWNER_TYPE = getattr(config, 'EXCHANGE_OWNER_TYPE', 'exchange')
+
 from database import insert_whale_transfer, log_alert
 from notifier import send_telegram_message
 
