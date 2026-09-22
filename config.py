@@ -100,3 +100,5 @@ SIGNAL_ALERT_COOLDOWN_SECONDS = 3600  # aynı coin için en fazla saatte bir sin
 # VERİTABANI
 # ---------------------------------------------------------------------------
 DB_PATH = "whale_bot.db"
+EXCHANGE_OWNER_TYPE = "exchange"
+
