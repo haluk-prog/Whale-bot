@@ -1,5 +1,4 @@
-"""
-Whale Tracking Bot - Ayarlar
+# Whale Tracking Bot - Ayarlar
 Tüm eşik değerlerini ve API anahtarlarını burada yönetiyoruz.
 """
 
@@ -65,6 +64,7 @@ GAINERS_REFRESH_SECONDS = 900   # Liste ne sıklıkla yenilenecek (15 dakika)
 # ---------------------------------------------------------------------------
 WHALE_MIN_USD_VALUE = 1_000_000
 WHALE_POLL_INTERVAL_SECONDS = 30
+EXCHANGE_OWNER_TYPE = "exchange"
 
 # ---------------------------------------------------------------------------
 # HACİM / ALIŞ-SATIŞ AKIŞI AYARLARI (yüksek hacimli coinler için)
@@ -98,5 +98,3 @@ SIGNAL_ALERT_COOLDOWN_SECONDS = 3600  # aynı coin için en fazla saatte bir sin
 
 # ---------------------------------------------------------------------------
 # VERİTABANI
-# ---------------------------------------------------------------------------
-DB_PATH = "whale_bot.db"
