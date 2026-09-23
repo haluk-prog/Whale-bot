@@ -171,3 +171,45 @@ def has_open_position(symbol):
 
 
 def open_position(symbol, entry_price, qty, usd_amount, stop_loss_price, take_profit_price):
+    with get_conn() as conn:
+        cur = conn.execute(
+            """INSERT INTO positions
+               (symbol, entry_price, qty, usd_amount, stop_loss_price, take_profit_price, status)
+               VALUES (?, ?, ?, ?, ?, ?, 'open')""",
+            (symbol, entry_price, qty, usd_amount, stop_loss_price, take_profit_price),
+        )
+        conn.commit()
+        return cur.lastrowid
+
+
+def get_open_positions():
+    with get_conn() as conn:
+        cur = conn.execute(
+            """SELECT id, symbol, entry_price, qty, usd_amount, stop_loss_price, take_profit_price
+               FROM positions WHERE status = 'open'"""
+        )
+        cols = [c[0] for c in cur.description]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+
+def close_position(position_id, exit_price, exit_reason, pnl_usd):
+    with get_conn() as conn:
+        conn.execute(
+            """UPDATE positions
+               SET status = 'closed', exit_price = ?, exit_reason = ?, pnl_usd = ?,
+                   closed_at = strftime('%s','now')
+               WHERE id = ?""",
+            (exit_price, exit_reason, pnl_usd, position_id),
+        )
+        conn.commit()
+
+
+def get_latest_price(symbol):
+    """trade_flow tablosundaki en son fiyatı döndürür (pozisyon takibi için)."""
+    with get_conn() as conn:
+        cur = conn.execute(
+            "SELECT price FROM trade_flow WHERE symbol = ? ORDER BY id DESC LIMIT 1",
+            (symbol,),
+        )
+        row = cur.fetchone()
+        return row[0] if row else None
