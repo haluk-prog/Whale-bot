@@ -21,7 +21,7 @@ def init_db():
                 amount_usd REAL,
                 from_type TEXT,
                 to_type TEXT,
-                direction TEXT,       -- 'to_exchange' | 'from_exchange' | 'wallet_to_wallet'
+                direction TEXT,
                 timestamp INTEGER,
                 created_at INTEGER DEFAULT (strftime('%s','now'))
             )
@@ -33,7 +33,7 @@ def init_db():
                 price REAL,
                 qty REAL,
                 quote_qty REAL,
-                is_buyer_maker INTEGER,   -- 1 = satıcı piyasaya vurdu (satış baskısı), 0 = alıcı vurdu
+                is_buyer_maker INTEGER,
                 timestamp INTEGER
             )
         """)
@@ -55,9 +55,9 @@ def init_db():
                 usd_amount REAL,
                 stop_loss_price REAL,
                 take_profit_price REAL,
-                status TEXT,              -- 'open' | 'closed'
+                status TEXT,
                 exit_price REAL,
-                exit_reason TEXT,         -- 'take_profit' | 'stop_loss' | 'manual'
+                exit_reason TEXT,
                 pnl_usd REAL,
                 opened_at INTEGER DEFAULT (strftime('%s','now')),
                 closed_at INTEGER
@@ -112,7 +112,6 @@ def get_recent_trade_stats(symbol, window_seconds):
             (symbol, cutoff),
         )
         rows = dict(cur.fetchall())
-    # is_buyer_maker = 1 -> satış baskısı (taker sold), 0 -> alış baskısı (taker bought)
     sell_volume = rows.get(1, 0.0) or 0.0
     buy_volume = rows.get(0, 0.0) or 0.0
     return buy_volume, sell_volume
@@ -149,8 +148,7 @@ def log_alert(alert_type, symbol, message):
 def has_recent_alert(alert_type, symbol, within_seconds):
     """
     Aynı tür uyarının aynı sembol için son X saniye içinde gönderilip
-    gönderilmediğini kontrol eder. Spam'i önlemek için kullanılır
-    (örn. birikim uyarısı her 5 dakikada bir değil, en fazla saatte bir gitsin).
+    gönderilmediğini kontrol eder.
     """
     cutoff = int(time.time()) - within_seconds
     with get_conn() as conn:
@@ -163,10 +161,6 @@ def has_recent_alert(alert_type, symbol, within_seconds):
         return cur.fetchone() is not None
 
 
-# ---------------------------------------------------------------------------
-# POZİSYON YÖNETİMİ (otomatik alım/satım için)
-# ---------------------------------------------------------------------------
-
 def has_open_position(symbol):
     with get_conn() as conn:
         cur = conn.execute(
@@ -177,46 +171,3 @@ def has_open_position(symbol):
 
 
 def open_position(symbol, entry_price, qty, usd_amount, stop_loss_price, take_profit_price):
-    with get_conn() as conn:
-        cur = conn.execute(
-            """INSERT INTO positions
-               (symbol, entry_price, qty, usd_amount, stop_loss_price, take_profit_price, status)
-               VALUES (?, ?, ?, ?, ?, ?, 'open')""",
-            (symbol, entry_price, qty, usd_amount, stop_loss_price, take_profit_price),
-        )
-        conn.commit()
-        return cur.lastrowid
-
-
-def get_open_positions():
-    with get_conn() as conn:
-        cur = conn.execute(
-            """SELECT id, symbol, entry_price, qty, usd_amount, stop_loss_price, take_profit_price
-               FROM positions WHERE status = 'open'"""
-        )
-        cols = [c[0] for c in cur.description]
-        return [dict(zip(cols, row)) for row in cur.fetchall()]
-
-
-def close_position(position_id, exit_price, exit_reason, pnl_usd):
-    with get_conn() as conn:
-        conn.execute(
-            """UPDATE positions
-               SET status = 'closed', exit_price = ?, exit_reason = ?, pnl_usd = ?,
-                   closed_at = strftime('%s','now')
-               WHERE id = ?""",
-            (exit_price, exit_reason, pnl_usd, position_id),
-        )
-        conn.commit()
-
-
-def get_latest_price(symbol):
-    """trade_flow tablosundaki en son fiyatı döndürür (pozisyon takibi için)."""
-    with get_conn() as conn:
-        cur = conn.execute(
-            "SELECT price FROM trade_flow WHERE symbol = ? ORDER BY id DESC LIMIT 1",
-            (symbol,),
-        )
-        row = cur.fetchone()
-        return row[0] if row else None
-
